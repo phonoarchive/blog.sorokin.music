@@ -253,10 +253,12 @@ status:
 	@echo "Git status:"
 	@git status --porcelain
 
-commit: status
+commit:
 	@if git diff --quiet && git diff --staged --quiet; then \
 		echo "No changes to commit."; \
 	else \
+		echo "Git status:"; \
+		git status --porcelain; \
 		echo "Committing changes..."; \
 		git add .; \
 		if [ -n "$(MSG)" ]; then \
