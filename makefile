@@ -253,7 +253,17 @@ commit: status
 
 push: commit
 	@echo "Pushing to remote repository..."
-	@git push
+	@if git remote | grep -q .; then \
+		if git push 2>/dev/null; then \
+			echo "Push successful!"; \
+		else \
+			echo "Setting upstream and pushing..."; \
+			git push --set-upstream origin $(git branch --show-current); \
+		fi; \
+	else \
+		echo "No remote repository configured. Skipping push."; \
+		echo "To configure: git remote add origin <your-repo-url>"; \
+	fi
 
 # Full publish workflow: build, commit, push, deploy
 publish: clean production commit push deploy
