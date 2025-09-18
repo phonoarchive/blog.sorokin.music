@@ -153,20 +153,25 @@ $(BUILD_DIR)/%.html: $(POSTS_DIR)/%.md header.html $(BUILD_DIR)/posts.tsv
 	content="$$content"'<style>.isso-comment.isso-is-page-author > .isso-text-wrapper {background-color: #bae0ea;} .isso-comment.isso-is-page-author > .isso-text-wrapper > .isso-comment-header > .isso-author {color: #19798d;} .isso-comment.isso-is-page-author .isso-avatar img {box-shadow: 0 0 12px #ff6b6b; border-radius: 50%;}</style><section id="isso-thread" data-isso-id="'"$$page_url"'" data-title="'"$$title"'"></section><script data-isso="https://comments.sorokin.music" data-isso-page-author-hashes="ff0c0ae5337923403aad2449bccdfc47, 92264c714dff" src="https://comments.sorokin.music/js/embed.min.js" async="async"></script>'; \
 	printf '%s\n' "$$content" | cat header.html - | sed "s/{{TITLE}}/$$title/" > "$$target"
 
-# Generate HTML pages from pages
+# Generate HTML pages from pages (without comments, simpler date handling)
 $(BUILD_DIR)/%.html: $(PAGES_DIR)/%.md header.html $(BUILD_DIR)/pages.tsv
 	@echo "Generating $@..."
 	@f="$<"; \
 	target="$@"; \
-	title=$$(sed -n '/^# /{s/# //p; q}' "$$f"); \
-	created=$$(grep "$$f	" $(BUILD_DIR)/pages.tsv | cut -f3 | sed 's/T.*//'); \
-	updated=$$(grep "$$f	" $(BUILD_DIR)/pages.tsv | cut -f4 | sed 's/T.*//'); \
-	dates_text="Written on $$created."; \
-	if [ "$$created" != "$$updated" ]; then \
-		dates_text="$$dates_text Last updated on $$updated."; \
+	title=$(sed -n '/^# /{s/# //p; q}' "$f"); \
+	created=$(grep "$f	" $(BUILD_DIR)/pages.tsv | cut -f3 | sed 's/T.*//'); \
+	updated=$(grep "$f	" $(BUILD_DIR)/pages.tsv | cut -f4 | sed 's/T.*//'); \
+	if [ "$created" != "draft" ] && [ "$updated" != "draft" ]; then \
+		if [ "$created" != "$updated" ]; then \
+			dates_text="Last updated on $updated."; \
+		else \
+			dates_text="Created on $created."; \
+		fi; \
+		content=$($(MARKDOWN) "$f" | sed "$ a <small>$dates_text</small>"); \
+	else \
+		content=$($(MARKDOWN) "$f"); \
 	fi; \
-	content=$$($(MARKDOWN) "$$f" | sed "$ a <small>$$dates_text</small>"); \
-	printf '%s\n' "$$content" | cat header.html - | sed "s/{{TITLE}}/$$title/" > "$$target"
+	printf '%s\n' "$content" | cat header.html - | sed "s/{{TITLE}}/$title/" > "$target"
 
 # Generate Gemini pages from posts
 $(BUILD_DIR)/%.gmi: $(POSTS_DIR)/%.md $(BUILD_DIR)/posts.tsv
@@ -186,22 +191,33 @@ $(BUILD_DIR)/%.gmi: $(POSTS_DIR)/%.md $(BUILD_DIR)/posts.tsv
 		echo "$$dates_text" >> $@; \
 	fi
 
-# Generate Gemini pages from pages
+# Generate Gemini pages from pages (simpler date handling)
 $(BUILD_DIR)/%.gmi: $(PAGES_DIR)/%.md $(BUILD_DIR)/pages.tsv
 	@echo "Generating Gemini $@..."
 	@f="$<"; \
-	created=$$(grep "$$f	" $(BUILD_DIR)/pages.tsv | cut -f3 | sed 's/T.*//'); \
-	updated=$$(grep "$$f	" $(BUILD_DIR)/pages.tsv | cut -f4 | sed 's/T.*//'); \
-	dates_text="Written on $$created."; \
-	if [ "$$created" != "$$updated" ]; then \
-		dates_text="$$dates_text Last updated on $$updated."; \
-	fi; \
+	created=$(grep "$f	" $(BUILD_DIR)/pages.tsv | cut -f3 | sed 's/T.*//'); \
+	updated=$(grep "$f	" $(BUILD_DIR)/pages.tsv | cut -f4 | sed 's/T.*//'); \
 	if command -v md2gemini >/dev/null 2>&1; then \
-		<"$$f" perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph | sed "$ s/$$/\\n\\n$$dates_text/" > $@; \
+		if [ "$created" != "draft" ] && [ "$updated" != "draft" ]; then \
+			if [ "$created" != "$updated" ]; then \
+				dates_text="Last updated on $updated."; \
+			else \
+				dates_text="Created on $created."; \
+			fi; \
+			<"$f" perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph | sed "$ s/$/\\n\\n$dates_text/" > $@; \
+		else \
+			<"$f" perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph > $@; \
+		fi; \
 	else \
-		echo "# $$(sed -n '/^# /{s/# //p; q}' "$$f")" > $@; \
-		echo "" >> $@; \
-		echo "$$dates_text" >> $@; \
+		echo "# $(sed -n '/^# /{s/# //p; q}' "$f")" > $@; \
+		if [ "$created" != "draft" ] && [ "$updated" != "draft" ]; then \
+			echo "" >> $@; \
+			if [ "$created" != "$updated" ]; then \
+				echo "Last updated on $updated." >> $@; \
+			else \
+				echo "Created on $created." >> $@; \
+			fi; \
+		fi; \
 	fi
 
 # Development server (requires Python)
