@@ -4,6 +4,6 @@
 
 Я на связи через <a href="mailto:sorokin@sorokin.cc" rel="me">электропочту</a> и так же
 <a href="https://musicians.today/@sorokin" rel="me">Mastodon</a>.
- Subscribe to the [Atom feed](atom.xml) to get all new posts on this site.
+ Подписывайтесь на RSS-ленту [Atom](atom.xml), чтобы быть в курсе новых моих постов.
 
-## Blog Posts
+## Листки из альбома

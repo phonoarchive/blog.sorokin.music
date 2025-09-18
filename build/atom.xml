@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+	<title>Никита Сорокин: записки</title>
+	<link href="https://blog.sorokin.music/atom.xml" rel="self" />
+	<updated>2025-09-18T21:09:51+00:00</updated>
+	<author>
+		<name>phonoarchive</name>
+	</author>
+	<id>tag:blog.sorokin.music,2025-09-17:default-atom-feed</id>
+	<entry>
+		<title>Новое пространство</title>
+		<content type="html">&lt;h1&gt;Новое пространство&lt;/h1&gt;
+&lt;p&gt;В порядке эксперимента, решил создать этот блог в качестве альтернативы Facebook, Instagram, Telegram и иже с ними. &lt;/p&gt;</content>
+		<link href="first.html"/>
+		<id>tag:blog.sorokin.music,2025-09-17:posts/first.md</id>
+		<published>2025-09-17T21:23:32Z</published>
+		<updated>2025-09-17T21:23:32Z</updated>
+	</entry>
+</feed>
