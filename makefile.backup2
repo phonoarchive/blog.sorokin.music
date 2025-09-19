@@ -36,8 +36,8 @@ $(BUILD_DIR)/posts.tsv: $(POSTS_MD) | $(BUILD_DIR)
 		if [ -f "$$f" ]; then \
 			created=$$(git log --pretty='format:%aI' "$$f" 2>/dev/null | tail -1); \
 			updated=$$(git log --pretty='format:%aI' "$$f" 2>/dev/null | head -1); \
-			title=$$(sed -n '/^#/{s/^# *//p; q}' "$$f"); \
-			tags=$$(sed -n '/^[[:space:]]*[Tt]ags[[:space:]]*:/{s/^[[:space:]]*[Tt]ags[[:space:]]*://p; q}' "$$f" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$$//' | tr '\n' ',' | sed 's/,$$//'); \
+			title=$$(sed -n '/^# /{s/# //p; q}' "$$f"); \
+			tags=$$(sed -n '/^Tags: /{s/Tags: //p; q}' "$$f" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$$//' | tr '\n' ',' | sed 's/,$$//'); \
 			printf '%s\t%s\t%s\t%s\t%s\n' "$$f" "$${title:=No Title}" "$${created:=draft}" "$${updated:=draft}" "$$tags"; \
 		fi; \
 	done | sort -rt "	" -k 3 > $@
@@ -48,7 +48,7 @@ $(BUILD_DIR)/pages.tsv: $(PAGES_MD) | $(BUILD_DIR)
 		if [ -f "$$f" ]; then \
 			created=$$(git log --pretty='format:%aI' "$$f" 2>/dev/null | tail -1); \
 			updated=$$(git log --pretty='format:%aI' "$$f" 2>/dev/null | head -1); \
-			title=$$(sed -n '/^#/{s/^# *//p; q}' "$$f"); \
+			title=$$(sed -n '/^# /{s/# //p; q}' "$$f"); \
 			printf '%s\t%s\t%s\t%s\n' "$$f" "$${title:=No Title}" "$${created:=draft}" "$${updated:=draft}"; \
 		fi; \
 	done > $@
@@ -68,11 +68,7 @@ $(BUILD_DIR)/tags: $(BUILD_DIR)/tags.tsv header.html | $(BUILD_DIR)
 		sed "s/{{TITLE}}/Tags/" header.html; \
 		echo "<h1>Tags</h1>"; \
 		echo "<div class=\"tag-cloud\">"; \
-		if [ -s $(BUILD_DIR)/tags.tsv ]; then \
-			awk -F'\t' '{tags[$1]++} END {for(tag in tags) printf "<a href=\"/tags/%s.html\" class=\"tag\">%s (%d)</a> ", tag, tag, tags[tag]}' $(BUILD_DIR)/tags.tsv; \
-		else \
-			echo "<p>No tags found.</p>"; \
-		fi; \
+		awk -F'\t' '{tags[$1]++} END {for(tag in tags) printf "<a href=\"/tags/%s.html\" class=\"tag\">%s (%d)</a> ", tag, tag, tags[tag]}' $(BUILD_DIR)/tags.tsv; \
 		echo "</div>"; \
 		echo "<style>"; \
 		echo ".tag-cloud { margin: 2em 0; }"; \
@@ -82,27 +78,30 @@ $(BUILD_DIR)/tags: $(BUILD_DIR)/tags.tsv header.html | $(BUILD_DIR)
 		echo ".posts-by-tag h2 { border-bottom: 1px solid #eee; padding-bottom: 0.5em; }"; \
 		echo "</style>" \
 	) > $(BUILD_DIR)/tags/index.html
-	@# Generate individual tag pages
+	@# Generate individual tag pages using shell script approach
 	@if [ -f $(BUILD_DIR)/tags.tsv ]; then \
-		for tag in $$(awk -F'\t' '{print $$1}' $(BUILD_DIR)/tags.tsv | sort -u); do \
-			echo "Generating tag page for: $$tag"; \
+		for tag in $(awk -F'\t' '{print $1}' $(BUILD_DIR)/tags.tsv | sort -u); do \
+			echo "Generating tag page for: $tag"; \
 			( \
-				sed "s/{{TITLE}}/Posts tagged: $$tag/" header.html; \
-				echo "<h1>Posts tagged: $$tag</h1>"; \
+				sed "s/{{TITLE}}/Posts tagged: $tag/" header.html; \
+				echo "<h1>Posts tagged: $tag</h1>"; \
 				echo "<p><a href=\"/tags/\">&larr; All tags</a></p>"; \
 				echo "<div class=\"posts-by-tag\">"; \
-				awk -F'\t' -v tag="$$tag" '$$1 == tag { \
-					split($$4, created_parts, "T"); \
+				awk -F'\t' -v tag="$tag" '$1 == tag { \
+					split($3, created_parts, "T"); \
 					if (created_parts[1] != "draft") { \
-						gsub(/.*\//, "", $$2); gsub(/\.md$$/, ".html", $$2); \
-						print created_parts[1] " &mdash; <a href=\"/" $$2 "\">" $$3 "</a><br/>"; \
+						gsub(/.*\//, "", $2); gsub(/\.md$/, ".html", $2); \
+						title_cmd = "grep \"" $2 "\" $(BUILD_DIR)/posts.tsv | cut -f2"; \
+						title_cmd | getline actual_title; close(title_cmd); \
+						if (actual_title) title = actual_title; else title = $2; \
+						print created_parts[1] " &mdash; <a href=\"/" $2 "\">" title "</a><br/>"; \
 					} \
 				}' $(BUILD_DIR)/tags.tsv | sort -r; \
 				echo "</div>"; \
 				echo "<style>"; \
 				echo ".posts-by-tag { margin-top: 1em; }"; \
 				echo "</style>" \
-			) > "$(BUILD_DIR)/tags/$$tag.html"; \
+			) > "$(BUILD_DIR)/tags/$tag.html"; \
 		done; \
 	fi
 
@@ -110,7 +109,7 @@ $(BUILD_DIR)/tags: $(BUILD_DIR)/tags.tsv header.html | $(BUILD_DIR)
 $(BUILD_DIR)/index.html: $(BUILD_DIR)/posts.tsv index.md header.html
 	@echo "Generating main index with tags..."
 	@( \
-		title=$$(sed -n '/^#/{s/^# *//p; q}' index.md); \
+		title=$$(sed -n '/^# /{s/# //p; q}' index.md); \
 		sed "s/{{TITLE}}/$$title/" header.html; \
 		$(MARKDOWN) index.md; \
 		echo "<p><a href=\"/tags/\">Browse by tags &rarr;</a></p>"; \
@@ -142,7 +141,7 @@ $(BUILD_DIR)/index.html: $(BUILD_DIR)/posts.tsv index.md header.html
 $(BUILD_DIR)/index-with-drafts.html: $(BUILD_DIR)/posts.tsv index.md header.html
 	@echo "Generating index with drafts and tags..."
 	@( \
-		title=$$(sed -n '/^#/{s/^# *//p; q}' index.md); \
+		title=$$(sed -n '/^# /{s/# //p; q}' index.md); \
 		sed "s/{{TITLE}}/$$title/" header.html; \
 		$(MARKDOWN) index.md; \
 		echo "<p><a href=\"/tags/\">Browse by tags &rarr;</a></p>"; \
@@ -175,7 +174,7 @@ $(BUILD_DIR)/index.gmi: $(BUILD_DIR)/posts.tsv index.md $(PAGES_DIR)/projects.md
 		if command -v md2gemini >/dev/null 2>&1; then \
 			<index.md perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph; \
 		else \
-			echo "# $$(sed -n '/^#/{s/^# *//p; q}' index.md)"; \
+			echo "# $$(sed -n '/^# /{s/# //p; q}' index.md)"; \
 			echo ""; \
 		fi; \
 		echo "=> /tags/ Browse by tags"; \
@@ -205,7 +204,7 @@ $(BUILD_DIR)/atom.xml: $(BUILD_DIR)/posts.tsv header.html index.md
 		first_commit_date=$$(git log --pretty='format:%ai' . | cut -d ' ' -f1 | tail -1); \
 		echo '<?xml version="1.0" encoding="utf-8"?>'; \
 		echo '<feed xmlns="http://www.w3.org/2005/Atom">'; \
-		echo "	<title>$$(sed -n '/^#/{s/^# *//p; q}' index.md)</title>"; \
+		echo "	<title>$$(sed -n '/^# /{s/# //p; q}' index.md)</title>"; \
 		echo "	<link href=\"$$uri\" rel=\"self\" />"; \
 		echo "	<updated>$$(date --iso=seconds)</updated>"; \
 		echo "	<author>"; \
@@ -243,17 +242,14 @@ $(BUILD_DIR)/%.html: $(POSTS_DIR)/%.md header.html $(BUILD_DIR)/posts.tsv
 	@echo "Generating $@..."
 	@f="$<"; \
 	target="$@"; \
-	title=$$(sed -n '/^#/{s/^# *//p; q}' "$$f"); \
+	title=$$(sed -n '/^# /{s/# //p; q}' "$$f"); \
 	created=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f3 | sed 's/T.*//'); \
 	updated=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f4 | sed 's/T.*//'); \
 	tags=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f5); \
-	dates_text="Written on $$created"; \
+	dates_text="Written on $$created."; \
 	if [ "$$created" != "$$updated" ]; then \
-		dates_text="$$dates_text, last updated on $$updated"; \
-	else \
-		dates_text="$$dates_text"; \
+		dates_text="$$dates_text Last updated on $$updated."; \
 	fi; \
-	dates_text="$$dates_text."; \
 	tag_html=""; \
 	if [ -n "$$tags" ]; then \
 		tag_html="<div class=\"post-tags-footer\">Tags: "; \
@@ -266,8 +262,7 @@ $(BUILD_DIR)/%.html: $(POSTS_DIR)/%.md header.html $(BUILD_DIR)/posts.tsv
 		tag_html="$$tag_html</div>"; \
 	fi; \
 	page_url=$$(echo "$$f" | sed -E 's|.*/(.*).md|/\1|'); \
-	content=$$($(MARKDOWN) "$$f"); \
-	content="$$content\n\n<small>$$dates_text</small>\n$$tag_html"; \
+	content=$$($(MARKDOWN) "$$f" | sed "$ a <small>$$dates_text</small>$$tag_html"); \
 	content="$$content"'<style>.isso-comment.isso-is-page-author > .isso-text-wrapper {background-color: #bae0ea;} .isso-comment.isso-is-page-author > .isso-text-wrapper > .isso-comment-header > .isso-author {color: #19798d;} .isso-comment.isso-is-page-author .isso-avatar img {box-shadow: 0 0 12px #ff6b6b; border-radius: 50%;} .post-tags-footer { margin-top: 1em; padding-top: 1em; border-top: 1px solid #eee; } .post-tags-footer .tag-link { color: #666; text-decoration: none; margin-right: 0.5em; } .post-tags-footer .tag-link:hover { color: #333; text-decoration: underline; }</style><section id="isso-thread" data-isso-id="'"$$page_url"'" data-title="'"$$title"'"></section><script data-isso="https://comments.sorokin.music" data-isso-page-author-hashes="ff0c0ae5337923403aad2449bccdfc47, 92264c714dff" src="https://comments.sorokin.music/js/embed.min.js" async="async"></script>'; \
 	printf '%s\n' "$$content" | cat header.html - | sed "s/{{TITLE}}/$$title/" > "$$target"
 
@@ -283,13 +278,10 @@ $(BUILD_DIR)/%.gmi: $(POSTS_DIR)/%.md $(BUILD_DIR)/posts.tsv
 	created=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f3 | sed 's/T.*//'); \
 	updated=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f4 | sed 's/T.*//'); \
 	tags=$$(grep "$$f	" $(BUILD_DIR)/posts.tsv | cut -f5); \
-	dates_text="Written on $$created"; \
+	dates_text="Written on $$created."; \
 	if [ "$$created" != "$$updated" ]; then \
-		dates_text="$$dates_text, last updated on $$updated"; \
-	else \
-		dates_text="$$dates_text"; \
+		dates_text="$$dates_text Last updated on $$updated."; \
 	fi; \
-	dates_text="$$dates_text."; \
 	tag_text=""; \
 	if [ -n "$$tags" ]; then \
 		tag_text="Tags: $$tags"; \
@@ -297,7 +289,7 @@ $(BUILD_DIR)/%.gmi: $(POSTS_DIR)/%.md $(BUILD_DIR)/posts.tsv
 	if command -v md2gemini >/dev/null 2>&1; then \
 		<"$$f" perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph | sed "$ s/$$/\\n\\n$$dates_text\\n$$tag_text/" > $@; \
 	else \
-		echo "# $$(sed -n '/^#/{s/^# *//p; q}' "$$f")" > $@; \
+		echo "# $$(sed -n '/^# /{s/# //p; q}' "$$f")" > $@; \
 		echo "" >> $@; \
 		echo "$$dates_text" >> $@; \
 		if [ -n "$$tag_text" ]; then \
@@ -323,7 +315,7 @@ $(BUILD_DIR)/%.gmi: $(PAGES_DIR)/%.md $(BUILD_DIR)/pages.tsv
 			<"$$f" perl -0pe 's/<a href="([^"]*)".*>(.*)<\/a>/[\2](\1)/g;s/^<!--.*-->//gsm' | md2gemini --links paragraph > $@; \
 		fi; \
 	else \
-		echo "# $$(sed -n '/^#/{s/^# *//p; q}' "$$f")" > $@; \
+		echo "# $$(sed -n '/^# /{s/# //p; q}' "$$f")" > $@; \
 		if [ "$$created" != "draft" ] && [ "$$updated" != "draft" ]; then \
 			echo "" >> $@; \
 			if [ "$$created" != "$$updated" ]; then \
@@ -405,7 +397,7 @@ publish: clean production commit push deploy
 .PHONY: list-tags clean-tags
 list-tags: $(BUILD_DIR)/tags.tsv
 	@echo "All tags found:"
-	@awk -F'\t' '{tags[$1]++} END {for(tag in tags) printf "  %s (%d posts)\n", tag, tags[tag]}' $< | sort
+	@awk -F'\t' '{tags[$$1]++} END {for(tag in tags) printf "  %s (%d posts)\n", tag, tags[tag]}' $< | sort
 
 clean-tags:
 	@echo "Cleaning tag pages..."
