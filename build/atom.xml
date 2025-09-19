@@ -2,11 +2,22 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 	<title>Никита Сорокин: записки</title>
 	<link href="https://blog.sorokin.music/atom.xml" rel="self" />
-	<updated>2025-09-19T13:30:36+00:00</updated>
+	<updated>2025-09-19T13:33:01+00:00</updated>
 	<author>
 		<name>phonoarchive</name>
 	</author>
 	<id>tag:blog.sorokin.music,2025-09-17:default-atom-feed</id>
+	<entry>
+		<title>Чтение</title>
+		<content type="html">&lt;h1&gt;Чтение&lt;/h1&gt;
+&lt;p&gt;Tags: personal&lt;/p&gt;
+&lt;p&gt;Со всей очевидностью тяга человечества к чтению не иссякает, но может быть даже и возрастает, если принять во внимание среднее экранное время за телефонами и проч. Просто тексты принадлежат все более не писателям или исследователям, но каждому участнику информационного поля.&lt;/p&gt;</content>
+		<link href="note1.html"/>
+		<id>tag:blog.sorokin.music,2025-09-19:posts/note1.md</id>
+		<published>2025-09-19T13:30:37Z</published>
+		<updated>2025-09-19T13:30:37Z</updated>
+		<category term="personal"/>
+	</entry>
 	<entry>
 		<title>Новое пространство</title>
 		<content type="html">&lt;h1&gt;Новое пространство&lt;/h1&gt;
